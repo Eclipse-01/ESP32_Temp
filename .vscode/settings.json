@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.toml": "ini",
+        "lv_version.h": "c",
+        "lvgl.h": "c"
+    }
+}
