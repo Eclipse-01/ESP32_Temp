@@ -204,7 +204,7 @@ static void create_clock_page(void)
 
     // Hint text
     lv_obj_t *hint_label = lv_label_create(clock_screen);
-    lv_label_set_text(hint_label, "Click to return to Dashboard");
+    lv_label_set_text(hint_label, "Click to go to Noodle Timer");
     lv_obj_set_style_text_font(hint_label, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(hint_label, lv_color_hex(0x808080), 0);
     lv_obj_align(hint_label, LV_ALIGN_BOTTOM_MID, 0, 15);
@@ -257,11 +257,11 @@ static void clock_input_timer_cb(lv_timer_t *timer)
             press_duration = 0;
             return;
         }
-        // Single click navigates back to dashboard
+        // Single click navigates to instant noodle countdown
         if (press_duration > 0 && press_duration <= CLICK_DURATION_MS_MAX) {
             cleanup_clock_page();
-            create_dashboard();
-            Serial.println("Click detected, navigating to Dashboard.");
+            Page_InstantNoodleCountDown();
+            Serial.println("Click detected, navigating to Instant Noodle Countdown.");
             return;
         }
         // Reset press duration
