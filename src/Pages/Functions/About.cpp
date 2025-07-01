@@ -12,6 +12,7 @@ static const lv_color_t ACCENT_COLOR = lv_color_hex(0x3498DB);  // Blue for the 
 static lv_obj_t *about_screen;    // The "About" page screen object
 static lv_obj_t *info_screen;     // The "Info" page screen object
 static lv_obj_t *progress_bar;    // The progress bar widget
+static lv_obj_t *info_scroll_cont; // Scrollable container for info page
 
 // Timers for each page
 static lv_timer_t *about_page_timer;  // Timer for the about page
@@ -80,16 +81,25 @@ static lv_obj_t* create_info_row(lv_obj_t* parent, const char* label_text, const
 
 /**
  * @brief Creates the info page (triggered by a long press)
- * FIX: This function is now much cleaner using the helper.
+ * Modified to support scroll functionality
  */
 static void create_info_page(void)
 {
     info_screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(info_screen, BG_COLOR, 0);
 
-    lv_obj_t *cont = lv_obj_create(info_screen);
-    lv_obj_set_size(cont, lv_pct(85), LV_SIZE_CONTENT);
-    lv_obj_center(cont);
+    // Create a scrollable container that fills the screen
+    info_scroll_cont = lv_obj_create(info_screen);
+    lv_obj_set_size(info_scroll_cont, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_pad_all(info_scroll_cont, 20, 0);
+    lv_obj_set_style_bg_opa(info_scroll_cont, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(info_scroll_cont, 0, 0);
+    lv_obj_set_scroll_dir(info_scroll_cont, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(info_scroll_cont, LV_SCROLLBAR_MODE_AUTO);
+
+    // Content container inside the scrollable area
+    lv_obj_t *cont = lv_obj_create(info_scroll_cont);
+    lv_obj_set_size(cont, lv_pct(100), LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(cont, 10, 0);
     lv_obj_set_style_pad_row(cont, 10, 0);
@@ -112,14 +122,86 @@ static void create_info_page(void)
     create_info_row(cont, "RAM Info:", "320KB");
     create_info_row(cont, "ROM Info:", "4MB");
     create_info_row(cont, "System Info:", "PandaOS v1.0");
+    
+    // Add more content to make scrolling necessary
+    lv_obj_t *details_label = lv_label_create(cont);
+    lv_label_set_text(details_label, 
+    "### ESP32-C3 Multi-Function Environment Monitor ###\n\n"
+    "--- Core Processing Unit & Memory ---\n"
+    "* MCU: Espressif ESP32-C3-WROOM-02\n"
+    "  - CPU: 32-bit RISC-V, up to 160 MHz\n"
+    "  - Features: Secure Boot, Flash Encryption\n"
+    "* Flash Memory: 4MB SPI Flash\n"
+    "* SRAM: 400 KB\n\n"
+    "--- Connectivity Suite ---\n"
+    "* Wi-Fi: IEEE 802.11 b/g/n (2.4 GHz)\n"
+    "  - Modes: Station, SoftAP, Station+SoftAP\n"
+    "* Bluetooth: BLE 5.0\n"
+    "  - Features: Long Range, 2Mbps High Speed\n\n"
+    "--- On-board Sensing Array ---\n"
+    "* Temp Sensor: LM75 (I2C)\n"
+    "* Temp & Humidity: SHT20 (I2C)\n"
+    "* Internal Temp: ESP32 Internal Sensor\n\n"
+    "--- About This Project ---\n"
+    "* Author: Fang Leyang\n"
+    "  - Jiangnan University, School of IoT\n"
+    "  - Major: Internet of Things 2302\n"
+    "  - Student ID: 1034230231\n\n"
+    "* AI Assistants Used:\n"
+    "  - Google Gemini (2.5 Pro, 2.5/2.0 Flash)\n"
+    "  - Anthropic Claude (4/3.7 Sonnet)\n"
+    "  - ChatGPT (GPT-4.1, GPT-4o)\n"
+    "  - Deepseek (V3)\n\n"
+    "* Open Source Libraries:\n"
+    "  - LVGL, TFT_eSPI, ESP32WebServer\n"
+    "  - ArduinoJson, Arduino Core for ESP32\n\n"
+    "* Special Thanks To:\n"
+    "  - Google & Microsoft for free LLM access\n"
+    "  - Vercel for Web Deployment\n\n"
+    "* Know More At: iotcoursedesign.flysworld.top\n"
+    "* Source Code: https://github.com/Eclipse-01/ESP32_Temp\n\n"
+    "* Version: 1.4 | Date: 2025-07-02\n");
+    // Create QR code for GitHub repository
+    lv_obj_t *qr_code = lv_qrcode_create(cont);
+    lv_qrcode_set_size(qr_code, 120);
+    lv_qrcode_set_dark_color(qr_code, TEXT_COLOR);
+    lv_qrcode_set_light_color(qr_code, BG_COLOR);
+    lv_qrcode_update(qr_code, "https://github.com/Eclipse-01/ESP32_Temp", strlen("https://github.com/Eclipse-01/ESP32_Temp"));
+    lv_obj_align(qr_code, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_margin_top(qr_code, 20, 0);
+    lv_obj_set_style_margin_bottom(qr_code, 10, 0);
+
+    // Add QR code description
+    lv_obj_t *qr_desc = lv_label_create(cont);
+    lv_label_set_text(qr_desc, "Scan QR Code to visit GitHub Repository");
+    lv_obj_set_style_text_font(qr_desc, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(qr_desc, lv_color_hex(0x808080), 0);
+    lv_obj_set_width(qr_desc, lv_pct(100));
+    lv_obj_set_style_text_align(qr_desc, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_margin_bottom(qr_desc, 20, 0);
+    lv_obj_set_style_text_font(details_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(details_label, TEXT_COLOR, 0);
+    lv_obj_set_width(details_label, lv_pct(100));
+    lv_obj_set_style_margin_top(details_label, 20, 0);
 
     lv_obj_t *hint_label = lv_label_create(cont);
-    lv_label_set_text(hint_label, "Click to go back");
+    lv_label_set_text(hint_label, "Click to scroll down\nScroll to bottom to continue");
     lv_obj_set_style_text_font(hint_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(hint_label, lv_color_hex(0x808080), 0);
     lv_obj_set_width(hint_label, lv_pct(100));
     lv_obj_set_style_text_align(hint_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_margin_top(hint_label, 20, 0);
+    lv_obj_set_style_margin_bottom(hint_label, 30, 0); // Add bottom margin for easier scrolling
+    
+    // Add a bottom indicator to show when scrolling is complete
+    lv_obj_t *bottom_indicator = lv_label_create(cont);
+    lv_label_set_text(bottom_indicator, "You've reached the bottom\nClick again to continue");
+    lv_obj_set_style_text_font(bottom_indicator, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(bottom_indicator, ACCENT_COLOR, 0);
+    lv_obj_set_width(bottom_indicator, lv_pct(100));
+    lv_obj_set_style_text_align(bottom_indicator, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_margin_top(bottom_indicator, 20, 0);
+    lv_obj_set_style_margin_bottom(bottom_indicator, 20, 0);
 
     // NEW: Create a timer specifically for this page
     info_page_timer = lv_timer_create(info_page_timer_cb, TIMER_INTERVAL_MS, NULL);
@@ -212,30 +294,62 @@ static void about_page_timer_cb(lv_timer_t *timer)
 
 /**
  * @brief NEW: Timer callback for the "Info" page ONLY.
- * It just listens for a simple click to go back.
+ * Modified to support click-to-scroll and proceed when at bottom.
  */
 static void info_page_timer_cb(lv_timer_t *timer) {
     static info_page_input_state_t current_state = STATE_WAIT_FOR_INITIAL_RELEASE;
     bool is_pressed_now = is_button_pressed(BUTTON_PIN);
+    
     switch (current_state) {
         case STATE_WAIT_FOR_INITIAL_RELEASE:
             if (!is_pressed_now) {
                 current_state = STATE_READY_FOR_CLICK;
             }
             break;
+            
         case STATE_READY_FOR_CLICK:
             if (is_pressed_now) {
                 current_state = STATE_BUTTON_IS_PRESSED;
             }
             break;
+            
         case STATE_BUTTON_IS_PRESSED:
             if (!is_pressed_now) {
-                current_state = STATE_WAIT_FOR_INITIAL_RELEASE;
-                cleanup_info_page();
-                // 切换前确保About页面状态干净
-                cleanup_about_page();
-                Page_About();
-                return;
+                current_state = STATE_READY_FOR_CLICK;
+                
+                // Check if we're at the bottom of the scroll
+                lv_coord_t scroll_y = lv_obj_get_scroll_y(info_scroll_cont);
+                lv_coord_t scroll_bottom = lv_obj_get_scroll_bottom(info_scroll_cont);
+                
+                Serial.print("Scroll Y: ");
+                Serial.print(scroll_y);
+                Serial.print(", Scroll Bottom: ");
+                Serial.println(scroll_bottom);
+                
+                if (scroll_bottom <= 10) { // Allow 10px tolerance for bottom detection
+                    // At bottom, proceed to next page
+                    current_state = STATE_WAIT_FOR_INITIAL_RELEASE;
+                    cleanup_info_page();
+                    cleanup_about_page();
+                    Page_About();
+                    Serial.println("Reached bottom, returning to About page.");
+                    return;
+                } else {
+                    // Not at bottom, scroll down by a screen-relative amount
+                    lv_coord_t screen_height = lv_obj_get_height(info_scroll_cont);
+                    lv_coord_t scroll_step = (screen_height * 2) / 3; // Scroll by 2/3 of screen height (加速)
+                    lv_coord_t current_scroll = lv_obj_get_scroll_y(info_scroll_cont);
+                    
+                    // Ensure we don't scroll past the bottom
+                    lv_coord_t max_scroll = lv_obj_get_scroll_bottom(info_scroll_cont) + current_scroll;
+                    lv_coord_t target_scroll = current_scroll + scroll_step;
+                    if (target_scroll > max_scroll) {
+                        target_scroll = max_scroll;
+                    }
+                    
+                    lv_obj_scroll_to_y(info_scroll_cont, target_scroll, LV_ANIM_ON);
+                    Serial.println("Scrolling down...");
+                }
             }
             break;
     }
@@ -273,6 +387,7 @@ static void cleanup_info_page(void)
     if (info_screen) {
         lv_obj_del(info_screen);
         info_screen = NULL;
+        info_scroll_cont = NULL; // Reset scroll container reference
     }
     // 确保全局状态变量重置
     press_duration = 0;
