@@ -243,11 +243,11 @@ static void reset_page_timer_cb(lv_timer_t *timer)
             press_duration = 0;
             return;
         }
-        // A single click navigates back to the dashboard (an escape hatch)
+        // A single click navigates to the clock page (an escape hatch)
         if (press_duration > 0 && press_duration <= CLICK_DURATION_MS_MAX) {
             cleanup_reset_page();
-            create_dashboard();
-            Serial.println("Click detected, navigating to Dashboard.");
+            Page_Clock();
+            Serial.println("Click detected, navigating to Clock page.");
             return;
         }
         // Reset state if press was released before completion

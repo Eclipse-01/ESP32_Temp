@@ -28,6 +28,7 @@ bool Init_Connection(void);
 
 void Page_About(void);
 void Page_Reset(void);
+void Page_Clock(void);
 
 // 页面管理相关函数和变量的声明
 
