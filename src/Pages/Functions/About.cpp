@@ -200,8 +200,8 @@ static void about_page_timer_cb(lv_timer_t *timer)
             // 单击时跳转到dashboard，并重置状态
             press_duration = 0;
             ignore_initial_press = true;
-            create_dashboard();
-            Serial.println("Click detected, navigating to Dashboard.");
+            Page_Reset();
+            Serial.println("Click detected, navigating to Reset Page.");
             return;
         }
         press_duration = 0;

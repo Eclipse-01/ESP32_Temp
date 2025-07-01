@@ -25,13 +25,10 @@ static bool wifi_connected_waiting_for_button = false; // 等待物理按键标�
 static lv_timer_t *network_timer = NULL; // 用于网络处理的定时器
 static lv_timer_t *button_timer = NULL; // 用于按键检测的定时器
 
-// --- WiFi扫描状态 ---
-static int scan_status = -1; // -1:未开始, 0:正在扫描, 1:已完成
-static unsigned long scan_start_time = 0;
-static String scan_result_json; // 缓存扫描结果
-
 // 创建一个Preferences对象，命名空间为 "wifi-creds"
 Preferences preferences;
+
+void cleanup_wlan_setup_page(void);
 
 // --- Web服务器配网页面 (HTML & JavaScript) ---
 const char index_html[] PROGMEM = R"rawliteral(
@@ -45,90 +42,34 @@ const char index_html[] PROGMEM = R"rawliteral(
     .container { background-color: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
     h1 { color: #007aff; text-align: center; font-size: 24px; margin-bottom: 20px; }
     label { font-weight: 600; display: block; margin-top: 15px; margin-bottom: 5px; }
-    select, input[type="password"], input[type="submit"], input[type="text"] { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+    input[type="password"], input[type="submit"], input[type="text"] { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
     input[type="submit"] { background-color: #007aff; color: white; border: none; cursor: pointer; margin-top: 25px; font-weight: bold; transition: background-color 0.2s; }
     input[type="submit"]:hover { background-color: #0056b3; }
-    .spinner { margin: 20px auto; width: 40px; height: 40px; position: relative; display: none; }
-    .double-bounce1, .double-bounce2 { width: 100%; height: 100%; border-radius: 50%; background-color: #007aff; opacity: 0.6; position: absolute; top: 0; left: 0; animation: sk-bounce 2.0s infinite ease-in-out; }
-    .double-bounce2 { animation-delay: -1.0s; }
-    @keyframes sk-bounce { 0%, 100% { transform: scale(0.0) } 50% { transform: scale(1.0) } }
     #status { text-align: center; margin-top: 20px; font-weight: 500; display: none; }
-    #ssid_manual { display: none; margin-top: 10px; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg> WLAN Setup</h1>
     <form id="wifiForm">
-      <label for="ssid">Choose a Network:</label>
-      <select name="ssid" id="ssid" required></select>
-      <input type="text" id="ssid_manual" name="ssid_manual" placeholder="Enter SSID manually">
+      <label for="ssid">SSID:</label>
+      <input type="text" id="ssid" name="ssid" placeholder="Enter SSID" required>
       <label for="password">Password:</label>
       <input type="password" name="password" id="password">
       <input type="submit" value="Connect">
     </form>
-    <div class="spinner" id="spinner">
-      <div class="double-bounce1"></div>
-      <div class="double-bounce2"></div>
-    </div>
     <div id="status"></div>
   </div>
   <script>
-    function showSpinner(show) {
-      document.getElementById('spinner').style.display = show ? 'block' : 'none';
-    }
     function showStatus(message, isError = false) {
       const statusEl = document.getElementById('status');
       statusEl.textContent = message;
       statusEl.style.color = isError ? '#ff3b30' : '#34c759';
       statusEl.style.display = 'block';
     }
-    window.onload = () => {
-      showSpinner(true);
-      showStatus('Scanning for networks...', false);
-      fetch('/scan')
-        .then(response => response.json())
-        .then(data => {
-          showSpinner(false);
-          document.getElementById('status').style.display = 'none';
-          const select = document.getElementById('ssid');
-          select.innerHTML = '';
-          data.forEach(net => {
-            const option = document.createElement('option');
-            option.value = net.ssid;
-            option.textContent = `${net.ssid} (${net.rssi}dBm, ${net.secure ? 'Protected' : 'Open'})`;
-            select.appendChild(option);
-          });
-          // 添加手动输入选项
-          const manualOption = document.createElement('option');
-          manualOption.value = '__manual__';
-          manualOption.textContent = 'Other (Enter manually)';
-          select.appendChild(manualOption);
-        })
-        .catch(error => {
-            showSpinner(false);
-            showStatus('Failed to scan networks. Please refresh.', true);
-        });
-      // 监听下拉框变化，切换手动输入框显示
-      document.getElementById('ssid').addEventListener('change', function() {
-        const manualInput = document.getElementById('ssid_manual');
-        if (this.value === '__manual__') {
-          manualInput.style.display = 'block';
-          manualInput.required = true;
-        } else {
-          manualInput.style.display = 'none';
-          manualInput.required = false;
-        }
-      });
-    };
     document.getElementById('wifiForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      showSpinner(true);
       let ssid = document.getElementById('ssid').value;
-      const manualInput = document.getElementById('ssid_manual');
-      if (ssid === '__manual__') {
-        ssid = manualInput.value;
-      }
       const password = document.getElementById('password').value;
       showStatus(`Connecting to "${ssid}"...`);
       fetch('/connect', {
@@ -138,7 +79,6 @@ const char index_html[] PROGMEM = R"rawliteral(
       })
       .then(response => response.text())
       .then(text => {
-        showSpinner(false);
         if (text === 'success') {
           showStatus('Success! Device is connecting to the new network. This access point will now close.');
         } else {
@@ -146,7 +86,6 @@ const char index_html[] PROGMEM = R"rawliteral(
         }
       })
       .catch(error => {
-        showSpinner(false);
         showStatus('An error occurred. Please try again.', true);
       });
     });
@@ -286,15 +225,6 @@ static void start_web_server() {
       Serial.println("HTTP GET /hotspot-detect.html");
       server.send_P(200, "text/html", index_html);
     });
-
-    server.on("/scan", HTTP_GET, [](){
-        Serial.println("HTTP GET /scan");
-        if (scan_status != 1) {
-            // 首次或未扫描，执行一次扫描
-            do_wifi_scan_once();
-        }
-        server.send(200, "application/json", scan_result_json);
-    });
     
     server.on("/connect", HTTP_POST, [](){
         Serial.println("HTTP POST /connect");
@@ -355,29 +285,13 @@ static void physical_button_check_timer(lv_timer_t *timer) {
 
 
 /**
- * @brief 执行一次WiFi扫描并缓存结果到scan_result_json
- */
-void do_wifi_scan_once() {
-    scan_status = 0;
-    int n = WiFi.scanNetworks(false, true); // 同步扫描
-    JsonDocument doc;
-    JsonArray networks = doc.to<JsonArray>();
-    for (int i = 0; i < n; ++i) {
-        JsonObject net = networks.add<JsonObject>();
-        net["ssid"] = WiFi.SSID(i);
-        net["rssi"] = WiFi.RSSI(i);
-        net["secure"] = WiFi.encryptionType(i) != WIFI_AUTH_OPEN;
-    }
-    serializeJson(doc, scan_result_json);
-    scan_status = 1;
-    WiFi.scanDelete();
-}
-
-/**
  * @brief 创建并显示WLAN配置页面.
  */
 void WLAN_Setup_Page(void)
 {
+    // 切换前先清理本页面资源，防止内存泄漏
+    cleanup_wlan_setup_page();
+
     start_ap_spitha();  
     start_web_server(); 
 
@@ -453,4 +367,20 @@ void WLAN_Setup_Page(void)
     }
 
     lv_scr_load_anim(screen, LV_SCR_LOAD_ANIM_FADE_IN, 300, 0, false);
+}
+
+// 新增：清理WLAN_Setup页面资源，防止内存泄漏
+void cleanup_wlan_setup_page(void) {
+    if (label_status) {
+        lv_obj_del(label_status);
+        label_status = NULL;
+    }
+    if (network_timer) {
+        lv_timer_del(network_timer);
+        network_timer = NULL;
+    }
+    if (button_timer) {
+        lv_timer_del(button_timer);
+        button_timer = NULL;
+    }
 }

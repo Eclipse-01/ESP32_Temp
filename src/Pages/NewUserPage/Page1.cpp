@@ -156,7 +156,7 @@ static void load_next_page_cb(lv_timer_t *timer)
 {
     // 调用你的函数来加载下一个页面。
     // 注意：这只是一个示例函数名，请替换为你项目中实际的函数名。
-    // Load_NewUserPage2();
+    WLAN_Setup_Page();
     
     // 删除当前定时器
     lv_timer_del(timer);
@@ -167,7 +167,15 @@ static void check_button_cb(lv_timer_t *timer)
 {
     if (!button_pressed && digitalRead(BUTTON_PIN) == LOW) {
         button_pressed = true;
-        // 切换到 WLAN 配置页，使用淡入动画
+        // 切换到 WLAN 配置页，使用淡入动画前，主动释放screen1/screen2，防止内存泄漏
+        if (screen1) {
+            lv_obj_del(screen1);
+            screen1 = NULL;
+        }
+        if (screen2) {
+            lv_obj_del(screen2);
+            screen2 = NULL;
+        }
         WLAN_Setup_Page();
     }
 }

@@ -22,12 +22,12 @@ extern int8_t wifi_rssi;
 void NewUserPage1_Hello(void);
 void WLAN_Setup_Page(void);
 void create_dashboard(void);
-void do_wifi_scan_once(void);
 void create_setup_finished_page(void);
 void SendSensorDataToServer(void);
 bool Init_Connection(void);
 
 void Page_About(void);
+void Page_Reset(void);
 
 // 页面管理相关函数和变量的声明
 

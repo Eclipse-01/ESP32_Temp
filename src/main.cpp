@@ -46,6 +46,7 @@ float esp32_temp = 0.0f;
 uint32_t ram_free = 0;
 uint8_t cpu_usage = 0;
 int8_t wifi_rssi = 0;
+bool finished = false; // 用于标记是否完成初始化
 
 unsigned long last_read_time = 0;
 
@@ -119,7 +120,6 @@ void setup()
     if (WiFi.status() != WL_CONNECTED) {
         WiFi.mode(WIFI_STA);
         WiFi.begin();
-        // 可选: 等待连接或跳过
     }
     tft.setRotation(1); 
 
@@ -141,19 +141,19 @@ void setup()
     // --- 步骤 3: 创建 LVGL 用户界面 ---
     Preferences preferences;
     preferences.begin("init", false);
-    bool finished = preferences.getBool("finished", false);
+    finished = preferences.getBool("finished", false);
     preferences.end();
 
     if (finished) {
         create_dashboard();
+        
+        Wire.begin(IIC_SDA, IIC_SCL);
+
+        Serial.println("Setup done, LVGL is running.");
+        Init_Connection();
     } else {
         NewUserPage1_Hello();
     }
-
-    Wire.begin(IIC_SDA, IIC_SCL);
-
-    Serial.println("Setup done, LVGL is running.");
-    Init_Connection();
 }
 
 
@@ -171,6 +171,16 @@ void loop()
     if (now - last_heartbeat >= 1000) { // 每秒输出一次心跳
         last_heartbeat = now;
         Serial.printf("Heartbeat: %lu, Free RAM: %lu\n", ++heartbeat_counter, ESP.getFreeHeap());
+        // 新增：每10秒打印一次LVGL内存监控
+        static int lvgl_mem_cnt = 0;
+        if (++lvgl_mem_cnt >= 10) {
+            lvgl_mem_cnt = 0;
+            lv_mem_monitor_t mon;
+            lv_mem_monitor(&mon);
+            Serial.printf("LVGL mem: total=%lu, free=%lu, used=%lu, frag=%u%%, biggest_free=%lu\n",
+                (unsigned long)mon.total_size, (unsigned long)mon.free_size, (unsigned long)mon.used_cnt,
+                (unsigned int)mon.frag_pct, (unsigned long)mon.free_biggest_size);
+        }
     }
 
     // 读取按钮状态并处理
@@ -180,6 +190,7 @@ void loop()
     last_button_state = current_button_state;
 
     static unsigned long last_read = 0;
+    if (finished){
     if (now - last_read >= 2000) {
         last_read = now;
         lm75_temp = read_lm75_temp();
@@ -194,5 +205,5 @@ void loop()
             SendSensorDataToServer(); // 发送传感器数据到服务器
         }
         // 可在此处调用LVGL刷新数据的函数
-    }
+    }}
 }

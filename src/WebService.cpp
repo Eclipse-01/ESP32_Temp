@@ -52,14 +52,15 @@ void SendSensorDataTask(void *parameter) {
 
     if (WiFi.status() != WL_CONNECTED) {
         Serial.println("WiFi not connected, cannot send data.");
+        sendDataTaskHandle = NULL;
         vTaskDelete(NULL);
         return;
     }
 
-    HTTPClient http;
+    HTTPClient *http = new HTTPClient();
     String url = String(SERVER_URL) + "api/iot-data";
-    http.begin(url);
-    http.addHeader("Content-Type", "application/json");
+    http->begin(url);
+    http->addHeader("Content-Type", "application/json");
 
     String payload = "{";
     payload += "\"lm75_temp\":" + String(lm75, 2) + ",";
@@ -74,18 +75,19 @@ void SendSensorDataTask(void *parameter) {
     Serial.print("Sending payload: ");
     Serial.println(payload);
 
-    int httpResponseCode = http.POST(payload);
+    int httpResponseCode = http->POST(payload);
 
     if (httpResponseCode > 0) {
         Serial.printf("Data sent, response code: %d\n", httpResponseCode);
-        String response = http.getString();
+        String response = http->getString();
         Serial.print("Server response: ");
         Serial.println(response);
     } else {
-        Serial.printf("Error sending data: %s\n", http.errorToString(httpResponseCode).c_str());
+        Serial.printf("Error sending data: %s\n", http->errorToString(httpResponseCode).c_str());
     }
 
-    http.end();
+    http->end();
+    delete http; // 释放HTTPClient对象，防止内存泄漏
     sendDataTaskHandle = NULL; // 任务结束，重置句柄
     vTaskDelete(NULL); // 任务完成后自删除
 }
